@@ -1,6 +1,7 @@
 import numpy as np
 import robosuite.utils.transform_utils as trans
 
+
 class BaseSkill:
     def __init__(
             self,
@@ -14,8 +15,8 @@ class BaseSkill:
             delta_xyz_scale=np.array([0.15, 0.15, 0.05]),
             local_xyz_scale=np.array([0.05, 0.05, 0.05]),
             lift_height=0.95,
-            reach_threshold=0.1,
-            aff_threshold=0.1,
+            reach_threshold=0.08,
+            aff_threshold=0.08,
             aff_type=None,
 
             binary_gripper=True,
@@ -129,14 +130,15 @@ class BaseSkill:
             return 0.0, False
 
         th = self._config['aff_threshold']
-        within_th = (np.abs(aff_centers - reach_pos) <= th) #(np.abs(aff_centers ) <= th) #
+        within_th = (np.abs(aff_centers - reach_pos) <= th)  # (np.abs(aff_centers ) <= th) #
         aff_success = np.any(np.all(within_th, axis=1))
 
         if self._config['aff_type'] == 'dense':
             if aff_success:
                 aff_reward = 1.0
             else:
-                dist = np.clip(np.abs(aff_centers - reach_pos) - th, 0, None) #np.clip(np.abs(aff_centers) - th, 0, None) #
+                dist = np.clip(np.abs(aff_centers - reach_pos) - th, 0,
+                               None)  # np.clip(np.abs(aff_centers) - th, 0, None) #
                 min_dist = np.min(np.sum(dist, axis=1))
                 aff_reward = 1.0 - np.tanh(self._config['aff_tanh_scaling'] * min_dist)
         else:
@@ -149,6 +151,7 @@ class BaseSkill:
 
     def _get_reach_pos(self, info):
         raise NotImplementedError
+
 
 class AtomicSkill(BaseSkill):
     def __init__(
@@ -196,7 +199,8 @@ class AtomicSkill(BaseSkill):
         return None
 
     def _get_reach_pos(self, info):
-        return info['cur_ee_pos']
+        return info['reach_pos']
+
 
 class GripperSkill(BaseSkill):
     def __init__(
@@ -255,6 +259,7 @@ class GripperSkill(BaseSkill):
     def _get_reach_pos(self, info):
         return info['cur_ee_pos']
 
+
 class ReachOSCSkill(BaseSkill):
     def __init__(
             self,
@@ -262,7 +267,7 @@ class ReachOSCSkill(BaseSkill):
             use_gripper_params=True,
             use_ori_params=False,
             max_ac_calls=15,
-            use_delta=False, # only applicable for skill_type=r1
+            use_delta=False,  # only applicable for skill_type=r1
             **config
     ):
         super().__init__(
@@ -308,6 +313,11 @@ class ReachOSCSkill(BaseSkill):
         return gripper_action
 
     def _get_reach_pos(self, info):
+        """
+        goal_pos = info.get('reach_pos')
+        pos = goal_pos[0]
+        return pos
+        """
         params = self._params
 
         if self._config['use_delta']:
@@ -333,8 +343,8 @@ class ReachOSCSkill(BaseSkill):
             return None
         return np.array(aff_centers, copy=True)
 
-class ReachSkill(BaseSkill):
 
+class ReachSkill(BaseSkill):
     STATES = ['INIT', 'LIFTED', 'HOVERING', 'REACHED']
 
     def __init__(
@@ -364,8 +374,8 @@ class ReachSkill(BaseSkill):
         reached_lift = (cur_pos[2] >= self._config['lift_height'] - th)
         reached_xy = (np.linalg.norm(cur_pos[0:2] - goal_pos[0:2]) < th)
         reached_xyz = (np.linalg.norm(cur_pos - goal_pos) < th)
-        
-        #evtl auskommentieren
+
+        # evtl auskommentieren
         reached_ori = self._reached_goal_ori(info)
 
         if reached_xyz and reached_ori:
@@ -380,7 +390,7 @@ class ReachSkill(BaseSkill):
                     self._state = 'INIT'
 
         assert self._state in ReachSkill.STATES
-  
+
     def get_pos_ac(self, info):
         cur_pos = info['cur_ee_pos']
         goal_pos = self._get_reach_pos(info)
@@ -420,7 +430,8 @@ class ReachSkill(BaseSkill):
             gripper_action[:] = 0
 
         return gripper_action
-#TODO This function is one of the Problems --> we have to define it in an other way !!
+
+    # TODO This function is one of the Problems --> we have to define it in an other way !!
     '''
     def _get_reach_pos(self, info):
         params = self._params
@@ -429,12 +440,12 @@ class ReachSkill(BaseSkill):
             params[:3], self._config['global_xyz_bounds'])
         return pos
     '''
+
     def _get_reach_pos(self, info):
         goal_pos = info.get('reach_pos')
         pos = goal_pos[0]
         return pos
 
-    
     def is_success(self, info):
         return self._state == 'REACHED'
 
@@ -444,8 +455,8 @@ class ReachSkill(BaseSkill):
             return None
         return np.array(aff_centers, copy=True)
 
-class GraspSkill(BaseSkill):
 
+class GraspSkill(BaseSkill):
     STATES = ['INIT', 'LIFTED', 'HOVERING', 'REACHED', 'GRASPED']
 
     def __init__(
@@ -560,8 +571,8 @@ class GraspSkill(BaseSkill):
             return None
         return np.array(aff_centers, copy=True)
 
-class PushSkill(BaseSkill):
 
+class PushSkill(BaseSkill):
     STATES = ['INIT', 'LIFTED', 'HOVERING', 'REACHED', 'PUSHED']
 
     def __init__(
@@ -591,7 +602,7 @@ class PushSkill(BaseSkill):
         reached_src_xy = (np.linalg.norm(cur_pos[0:2] - src_pos[0:2]) < th)
         reached_src_xyz = (np.linalg.norm(cur_pos - src_pos) < th)
         reached_target_xyz = (np.linalg.norm(cur_pos - target_pos) < th)
-        #evtl auskommentieren
+        # evtl auskommentieren
         reached_ori = self._reached_goal_ori(info)
 
         if self._state in ['REACHED', 'PUSHED'] and reached_target_xyz:
@@ -658,14 +669,14 @@ class PushSkill(BaseSkill):
             params[:3], self._config['global_xyz_bounds'])
         pos = pos.copy()
         return pos
-    
+
     def _get_reach_pos(self, info):
         goal_pos = info.get('reach_pos')
         pos = goal_pos[0]
         return pos
 
     def _get_push_pos(self, info):
-        params = info['cur_ee_pos']#self._params
+        params = info['cur_ee_pos']  # self._params
 
         src_pos = self._get_reach_pos(info)
         pos = src_pos.copy()
@@ -685,7 +696,7 @@ class PushSkill(BaseSkill):
         if aff_centers is None:
             return None
         return np.array(aff_centers, copy=True)
-    
+
 
 ##### NEW SKILLS
 class StopSkill(BaseSkill):

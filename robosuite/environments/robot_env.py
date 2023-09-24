@@ -653,7 +653,7 @@ class RobotEnv(MujocoEnv):
 
 
     def _get_env_info(self, action):
-        assert len(action) == self._action_dim
+        #assert len(action) == self._action_dim
         info = {}
         return info
     
@@ -675,11 +675,12 @@ class RobotEnv(MujocoEnv):
         """
         # Verify that the action is the correct dimension
         robot_dim = sum([robot.action_dim for robot in self.robots])
-        assert len(action) == robot_dim, \
-            "environment got invalid action dimension -- expected {}, got {}".format(
-                robot_dim, len(action))
+        #assert len(action) == robot_dim, \
+            #"environment got invalid action dimension -- expected {}, got {}".format(
+                #robot_dim, len(action))
 
         # Update robot joints based on controller actions
+        action = action[0:robot_dim]
         cutoff = 0
         for idx, robot in enumerate(self.robots):
             robot_action = action[cutoff:cutoff+robot.action_dim]

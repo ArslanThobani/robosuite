@@ -28,8 +28,8 @@ ACTION_DIM       = 12
 AGENT_HORIZON    = int(ENV_HORIZON / (ACTION_LIM / 2))  # This is necessarily an approximation
 NUM_VEC_ENVS     = 4 #changed here
 PRIMITIVE        = 't'
-QUAT_ANGLES_PEG  = np.array([0.5, 0.5, 0.5, -0.5])
-QUAT_ANGLES_HOLE = np.array([0, -0.7071, 0.7071, 0])
+QUAT_ANGLES_PEG  = np.array([0.5, 0.5, 0.5])
+QUAT_ANGLES_HOLE = np.array([0, -0.7071, 0.7071])
 BBOX_PEG         = np.array([[-0.2, +0.2], [-0.4, -0.2], [+1.5, +1.9]])
 BBOX_HOLE        = np.array([[-0.2, +0.2], [+0.2, +0.4], [+1.3, +1.7]])
 MIN_BBOX_PEG     = BBOX_PEG[:, 0]
@@ -315,7 +315,7 @@ class TwoArmPegInHole(TwoArmEnv):
     def _calculate_angle_magnitude(self, position, quat_angles, min_bbox, max_bbox):
         """Calculate angle magnitude based on position"""
         if np.all(min_bbox <= position) and np.all(position <= max_bbox):
-            return np.linalg.norm(quat_angles - position) / len(quat_angles)
+            return np.linalg.norm(quat_angles - position[:3]) / len(quat_angles)
         else:
             return 0.5
 
@@ -432,16 +432,16 @@ class TwoArmPegInHole(TwoArmEnv):
         reaching_reward = 1 - np.tanh(1.0 * dist)
         r_reach += reaching_reward * 0.1
 
-        #angle_mag_peg = self._calculate_angle_magnitude(gripper_site_pos, QUAT_ANGLES_PEG, MIN_BBOX_PEG, MAX_BBOX_PEG)
+        angle_mag_peg = self._calculate_angle_magnitude(gripper_site_pos, QUAT_ANGLES_PEG, MIN_BBOX_PEG, MAX_BBOX_PEG)
 
-        #angle_mag_hole = self._calculate_angle_magnitude(hole_pos, QUAT_ANGLES_HOLE, MIN_BBOX_HOLE, MAX_BBOX_HOLE)
-        #r_align = 1 - (angle_mag_peg + angle_mag_hole)
+        angle_mag_hole = self._calculate_angle_magnitude(hole_pos, QUAT_ANGLES_HOLE, MIN_BBOX_HOLE, MAX_BBOX_HOLE)
+        r_align = 1 - (angle_mag_peg + angle_mag_hole)
 
             # Orientation reward
         reward += 1 - np.tanh(d)
         reward += 1 - np.tanh(np.abs(t))
         reward += cos
-        r_align = reward * 0.85
+        #r_align = reward * 0.85
 
         r_insert = self._check_success()
         
@@ -453,9 +453,9 @@ class TwoArmPegInHole(TwoArmEnv):
         r_align, r_insert, r_reach = self.staged_rewards() #r_grasp,   r_reach,
         t, d, cos = self._compute_orientation()
         info.update({
-            'r_reach': r_reach / 0.10,
+            'r_reach': r_reach,
             #'r_grasp': r_grasp / 0.15,
-            'r_align': r_align / 0.85,
+            'r_align': r_align,#/ 0.85,
             'success': r_insert,
             'align_t_abs': np.abs(t),
             'align_d': d,
@@ -690,7 +690,7 @@ class TwoArmPegInHole(TwoArmEnv):
         """
         t, d, cos = self._compute_orientation()
  
-        return  d < 0.15 and -0.22 <= t <= 0.24 and cos > 0.25 # d < 0.08 and -0.12 <= t <= 0.14 and cos > 0.95
+        return  d < 0.08 and -0.12 <= t <= 0.14 and cos > 0.65 # d < 0.08 and -0.12 <= t <= 0.14 and cos > 0.95
 
     def _compute_orientation(self):
         """
